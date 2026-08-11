@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FitVault</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Space+Mono:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<style>
+  :root{
+    --cream:#F5EFE3;
+    --cream-dim:#EAE2D2;
+    --navy:#1C2640;
+    --navy-dim:#5A6178;
+    --olive:#8A8B5E;
+    --amber:#B8863B;
+    --amber-soft:#EFE0C4;
+    --paper:#FBF8F1;
+    --radius:18px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--cream);
+    background-image:
+      radial-gradient(circle at 10% 8%, rgba(138,139,94,0.10), transparent 40%),
+      radial-gradient(circle at 92% 88%, rgba(184,134,59,0.10), transparent 42%);
+    color:var(--navy);
+    font-family:'Inter', sans-serif;
+    min-height:100vh;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:32px 18px;
+    -webkit-font-smoothing:antialiased;
+  }
+  .stage{ width:100%; max-width:460px; position:relative; }
+  .view{ display:none; animation:rise .5s cubic-bezier(.2,.7,.3,1); }
+  .view.active{ display:block; }
+  @keyframes rise{ from{opacity:0; transform:translateY(14px);} to{opacity:1; transform:translateY(0);} }
+  @media (prefers-reduced-motion: reduce){ .view{ animation:none !important; } }
+
+  .brand{
+    display:flex; align-items:center; justify-content:center; gap:9px;
+    margin-bottom:22px; letter-spacing:.14em; text-transform:uppercase;
+    font-family:'Space Mono', monospace; font-size:11.5px; color:var(--navy-dim);
+  }
+  .brand .dot{ width:6px; height:6px; border-radius:50%; background:var(--olive); }
+
+  /* ---------- CARE LABEL (instructions) ---------- */
+  .tag{
+    background:var(--paper);
+    border-radius:4px;
+    padding:38px 32px 32px;
+    position:relative;
+    box-shadow:0 1px 0 rgba(28,38,64,0.04), 0 24px 48px -20px rgba(28,38,64,0.28);
+    transform:rotate(-0.6deg);
+  }
+  .tag::before{
+    content:"";
+    position:absolute; inset:12px;
+    border:1.5px dashed rgba(28,38,64,0.22);
+    border-radius:2px;
+    pointer-events:none;
+  }
+  .tag .punch{
+    position:absolute; top:-13px; left:50%; transform:translateX(-50%);
+    width:26px; height:26px; border-radius:50%;
+    background:var(--cream);
+    border:1.5px dashed rgba(28,38,64,0.3);
+  }
+  .tag .punch::after{
+    content:""; position:absolute; inset:7px; border-radius:50%; background:var(--paper);
+  }
+  .tag-eyebrow{
+    font-family:'Space Mono', monospace; font-size:10.5px; letter-spacing:.16em;
+    text-transform:uppercase; color:var(--amber); text-align:center; margin-bottom:6px;
+  }
+  .tag h1{
+    font-family:'Fraunces', serif; font-weight:500; font-size:26px; line-height:1.15;
+    text-align:center; margin:0 0 6px; color:var(--navy);
+  }
+  .tag .sub{
+    text-align:center; font-size:13.5px; color:var(--navy-dim); margin:0 0 26px;
+    line-height:1.5;
+  }
+  .care-row{
+    display:flex; gap:14px; align-items:flex-start;
+    padding:16px 4px; border-top:1px solid rgba(28,38,64,0.1);
+  }
+  .care-row:last-of-type{ border-bottom:1px solid rgba(28,38,64,0.1); margin-bottom:22px; }
+  .care-icon{
+    flex:none; width:40px; height:40px; border-radius:50%;
+    border:1.5px solid var(--navy); display:flex; align-items:center; justify-content:center;
+    background:var(--cream);
+  }
+  .care-icon svg{ width:20px; height:20px; }
+  .care-text h3{
+    margin:0 0 3px; font-size:14.5px; font-weight:700; color:var(--navy);
+  }
+  .care-text p{ margin:0; font-size:12.8px; line-height:1.5; color:var(--navy-dim); }
+  .care-text b{ color:var(--amber); font-weight:700; }
+
+  .why-strip{
+    background:var(--amber-soft);
+    border-radius:10px;
+    padding:12px 14px;
+    font-size:12px; line-height:1.55; color:#5f4a1f;
+    margin-bottom:24px;
+  }
+  .why-strip b{ color:var(--navy); }
+
+  .btn{
+    width:100%; border:none; cursor:pointer;
+    font-family:'Inter', sans-serif; font-weight:600; font-size:15px;
+    padding:15px 18px; border-radius:12px;
+    background:var(--navy); color:var(--cream);
+    letter-spacing:.01em;
+    transition:transform .15s ease, background .15s ease;
+  }
+  .btn:hover{ background:#141c33; transform:translateY(-1px); }
+  .btn:active{ transform:translateY(0); }
+  .tag-foot{
+    text-align:center; margin-top:14px; font-family:'Space Mono', monospace;
+    font-size:10px; letter-spacing:.1em; color:var(--navy-dim); text-transform:uppercase;
+  }
+
+  /* ---------- LOGIN / SIGNUP ---------- */
+  .card{
+    background:var(--paper); border-radius:var(--radius);
+    padding:34px 30px 28px;
+    box-shadow:0 24px 48px -20px rgba(28,38,64,0.28);
+  }
+  .switcher{
+    display:flex; background:var(--cream-dim); border-radius:11px; padding:4px; margin-bottom:26px;
+  }
+  .switcher button{
+    flex:1; border:none; background:transparent; padding:10px 0; cursor:pointer;
+    font-family:'Inter', sans-serif; font-weight:600; font-size:13.5px; color:var(--navy-dim);
+    border-radius:8px; transition:all .18s ease;
+  }
+  .switcher button.active{ background:var(--navy); color:var(--cream); }
+
+  .card h1{
+    font-family:'Fraunces', serif; font-weight:500; font-size:25px; margin:0 0 4px; color:var(--navy);
+  }
+  .card .sub{ font-size:13px; color:var(--navy-dim); margin:0 0 24px; }
+
+  .field{ margin-bottom:15px; }
+  .field label{
+    display:block; font-size:11.5px; font-weight:600; letter-spacing:.05em;
+    text-transform:uppercase; color:var(--navy-dim); margin-bottom:7px;
+  }
+  .field input{
+    width:100%; padding:13px 14px; border-radius:10px;
+    border:1.5px solid rgba(28,38,64,0.14); background:var(--cream);
+    font-family:'Inter', sans-serif; font-size:14.5px; color:var(--navy);
+    outline:none; transition:border-color .15s ease, box-shadow .15s ease;
+  }
+  .field input::placeholder{ color:#9AA0AF; }
+  .field input:focus{
+    border-color:var(--navy); box-shadow:0 0 0 3px rgba(28,38,64,0.10);
+  }
+  .field.error input{ border-color:#B4483B; }
+  .field .msg{ font-size:11.5px; color:#B4483B; margin-top:6px; min-height:14px; }
+
+  .hint{
+    display:flex; gap:9px; align-items:flex-start;
+    background:var(--amber-soft); border-radius:10px; padding:11px 13px;
+    font-size:12px; line-height:1.5; color:#5f4a1f; margin:4px 0 20px;
+  }
+  .hint svg{ flex:none; width:15px; height:15px; margin-top:2px; }
+
+  .name-field-note{ font-size:11.5px; color:var(--navy-dim); margin-top:6px; }
+
+  .submit-status{
+    text-align:center; font-size:13px; color:var(--olive); font-weight:600;
+    margin-top:14px; display:none;
+  }
+  .submit-status.show{ display:block; }
+  .submit-status.is-error{ color:#B4483B; }
+  .btn[disabled]{ opacity:.6; cursor:default; transform:none !important; }
+  .btn .spin{
+    display:inline-block; width:14px; height:14px; margin-right:8px; vertical-align:-2px;
+    border:2px solid rgba(245,239,227,0.35); border-top-color:var(--cream);
+    border-radius:50%; animation:spin .7s linear infinite;
+  }
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+  .verify-note{
+    text-align:center; font-size:12px; color:var(--navy-dim); margin-top:12px; line-height:1.5;
+  }
+
+  .back-link{
+    display:block; text-align:center; margin-top:18px;
+    font-size:12.5px; color:var(--navy-dim); text-decoration:none;
+    font-family:'Space Mono', monospace; letter-spacing:.04em;
+  }
+  .back-link:hover{ color:var(--navy); }
+
+  /* ---------- GOOGLE SIGN-IN ---------- */
+  .divider{
+    display:flex; align-items:center; gap:12px;
+    margin:20px 0; color:var(--navy-dim);
+    font-family:'Space Mono', monospace; font-size:10.5px;
+    letter-spacing:.1em; text-transform:uppercase;
+  }
+  .divider::before, .divider::after{
+    content:""; flex:1; height:1px; background:rgba(28,38,64,0.14);
+  }
+  .btn-google{
+    width:100%; border:1.5px solid rgba(28,38,64,0.14); cursor:pointer;
+    font-family:'Inter', sans-serif; font-weight:600; font-size:14.5px;
+    padding:13px 16px; border-radius:12px;
+    background:var(--paper); color:var(--navy);
+    display:flex; align-items:center; justify-content:center; gap:10px;
+    transition:transform .15s ease, background .15s ease, border-color .15s ease;
+  }
+  .btn-google:hover{ background:var(--cream); border-color:rgba(28,38,64,0.26); transform:translateY(-1px); }
+  .btn-google:active{ transform:translateY(0); }
+  .btn-google[disabled]{ opacity:.6; cursor:default; transform:none !important; }
+  .btn-google svg{ width:18px; height:18px; flex:none; }
+</style>
+</head>
+<body>
+
+<div class="stage">
+  <div class="brand"><span class="dot"></span>FitVault<span class="dot"></span></div>
+
+  <!-- ================= VIEW 1: INSTRUCTIONS (care label) ================= -->
+  <section class="view active" id="view-instructions">
+    <div class="tag">
+      <div class="punch"></div>
+      <div class="tag-eyebrow">Care instructions</div>
+      <h1>Read before you<br>build your closet</h1>
+      <p class="sub">Two quick rules keep your account low-key while our AI does the outfit work.</p>
+
+      <div class="care-row">
+        <div class="care-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#1C2640" stroke-width="1.7"><path d="M4 7h3l1.5-2h7L17 7h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1Z"/><circle cx="12" cy="13" r="3.4"/><line x1="2" y1="21" x2="21" y2="3" stroke="#B4483B" stroke-width="1.7"/></svg>
+        </div>
+        <div class="care-text">
+          <h3>Skip the face photos</h3>
+          <p>Every closet photo is read by an <b>AI vision model (Gemini)</b> to tag what you're wearing. Crop out faces, or shoot flatlays and hangers instead.</p>
+        </div>
+      </div>
+
+      <div class="care-row">
+        <div class="care-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#1C2640" stroke-width="1.7"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"/><path d="M4 20c0-3.9 3.6-6 8-6s8 2.1 8 6"/><line x1="2" y1="21" x2="21" y2="3" stroke="#B4483B" stroke-width="1.7"/></svg>
+        </div>
+        <div class="care-text">
+          <h3>Go by a nickname</h3>
+          <p>Use a display name, not your <b>full real name</b> — it's what shows on your profile and feed posts.</p>
+        </div>
+      </div>
+
+      <div class="why-strip">
+        <b>Why:</b> uploaded photos leave the app to get analyzed by a third-party AI model. Keeping faces and real names out just limits what's floating around outside FitVault.
+      </div>
+
+      <button class="btn" id="btn-continue">Got it — continue</button>
+      <div class="tag-foot">FV · Teen Style Closet</div>
+    </div>
+  </section>
+
+  <!-- ================= VIEW 2: LOGIN / SIGNUP ================= -->
+  <section class="view" id="view-login">
+    <div class="card">
+      <div class="switcher">
+        <button type="button" class="active" id="tab-signup">Sign up</button>
+        <button type="button" id="tab-login">Log in</button>
+      </div>
+
+      <h1 id="form-title">Create your closet</h1>
+      <p class="sub" id="form-sub">Nickname, email, password — that's it.</p>
+
+      <button type="button" class="btn-google" id="btn-google">
+        <svg viewBox="0 0 48 48">
+          <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.1 8 3l5.7-5.7C34.6 6.1 29.6 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.7-.4-3.5z"/>
+          <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.5 15.9 18.9 13 24 13c3.1 0 5.8 1.1 8 3l5.7-5.7C34.6 6.1 29.6 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/>
+          <path fill="#4CAF50" d="M24 44c5.5 0 10.4-1.9 14.2-5.1l-6.6-5.4C29.6 35.4 27 36 24 36c-5.3 0-9.7-3.3-11.3-8l-6.6 5.1C9.6 39.6 16.2 44 24 44z"/>
+          <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.3 4.3-4.3 5.5l6.6 5.4C41.5 35.6 44 30.2 44 24c0-1.3-.1-2.7-.4-3.5z"/>
+        </svg>
+        Continue with Google
+      </button>
+
+      <div class="divider">or</div>
+
+      <form id="auth-form" novalidate>
+        <div class="field" id="field-name">
+          <label for="name">Nickname</label>
+          <input id="name" type="text" placeholder="e.g. sagegoblin, not your real name" autocomplete="nickname">
+          <div class="msg"></div>
+        </div>
+
+        <div class="field" id="field-email">
+          <label for="email">Email</label>
+          <input id="email" type="email" placeholder="you@example.com" autocomplete="email">
+          <div class="msg"></div>
+        </div>
+
+        <div class="field" id="field-password">
+          <label for="password">Password</label>
+          <input id="password" type="password" placeholder="At least 8 characters" autocomplete="new-password">
+          <div class="msg"></div>
+        </div>
+
+        <div class="hint">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#5f4a1f" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="13"/><circle cx="12" cy="16.3" r="0.6" fill="#5f4a1f"/></svg>
+          <span>Reminder: nickname only, and keep face photos out of your closet uploads.</span>
+        </div>
+
+        <button type="submit" class="btn" id="btn-submit">Create account</button>
+        <div class="submit-status" id="submit-status">You're in. Welcome to FitVault.</div>
+      </form>
+
+      <a href="#" class="back-link" id="btn-back">&larr; back to instructions</a>
+    </div>
+  </section>
+</div>
+
+<script>
+  // ---- Supabase client ----
+  // Publishable/anon key — safe to ship in client code, it only works
+  // through your project's RLS policies. Do NOT put a service_role key here.
+  // Named `sb`, not `supabase` — the CDN script already declares a global
+  // `supabase` (the library namespace itself), so redeclaring that name
+  // with const throws "Identifier 'supabase' has already been declared".
+  const sb = window.supabase.createClient(
+    'https://wlsmzjinhshofltkmqar.supabase.co',
+    'sb_publishable_vij6ww92GvSVMkAnbr55EA_CblYU45C'
+  );
+
+  const viewInstructions = document.getElementById('view-instructions');
+  const viewLogin = document.getElementById('view-login');
+
+  document.getElementById('btn-continue').addEventListener('click', () => {
+    viewInstructions.classList.remove('active');
+    viewLogin.classList.add('active');
+  });
+  document.getElementById('btn-back').addEventListener('click', (e) => {
+    e.preventDefault();
+    viewLogin.classList.remove('active');
+    viewInstructions.classList.add('active');
+  });
+
+  // Sign up / log in toggle
+  const tabSignup = document.getElementById('tab-signup');
+  const tabLogin = document.getElementById('tab-login');
+  const fieldName = document.getElementById('field-name');
+  const formTitle = document.getElementById('form-title');
+  const formSub = document.getElementById('form-sub');
+  const btnSubmit = document.getElementById('btn-submit');
+  let mode = 'signup';
+
+  function setMode(next){
+    mode = next;
+    tabSignup.classList.toggle('active', mode === 'signup');
+    tabLogin.classList.toggle('active', mode === 'login');
+    fieldName.style.display = mode === 'signup' ? 'block' : 'none';
+    formTitle.textContent = mode === 'signup' ? 'Create your closet' : 'Welcome back';
+    formSub.textContent = mode === 'signup' ? "Nickname, email, password — that's it." : 'Log in with your email and password.';
+    btnSubmit.textContent = mode === 'signup' ? 'Create account' : 'Log in';
+    document.getElementById('submit-status').classList.remove('show');
+  }
+  tabSignup.addEventListener('click', () => setMode('signup'));
+  tabLogin.addEventListener('click', () => setMode('login'));
+
+  // Validation + fake submit (wire to your auth backend here)
+  const form = document.getElementById('auth-form');
+  const nameInput = document.getElementById('name');
+  const emailInput = document.getElementById('email');
+  const passwordInput = document.getElementById('password');
+
+  function showError(fieldId, message){
+    const field = document.getElementById(fieldId);
+    field.classList.add('error');
+    field.querySelector('.msg').textContent = message;
+  }
+  function clearError(fieldId){
+    const field = document.getElementById(fieldId);
+    field.classList.remove('error');
+    field.querySelector('.msg').textContent = '';
+  }
+
+  const statusEl = document.getElementById('submit-status');
+
+  function setStatus(message, isError){
+    statusEl.textContent = message;
+    statusEl.classList.toggle('is-error', !!isError);
+    statusEl.classList.add('show');
+  }
+  function setLoading(isLoading){
+    btnSubmit.disabled = isLoading;
+    btnSubmit.innerHTML = isLoading
+      ? '<span class="spin"></span>' + (mode === 'signup' ? 'Creating account…' : 'Logging in…')
+      : (mode === 'signup' ? 'Create account' : 'Log in');
+  }
+
+  // Friendlier phrasing for the Supabase error strings people hit most.
+  function friendlyAuthError(err){
+    const msg = (err && err.message) || 'Something went wrong. Try again.';
+    if (/already registered|already exists/i.test(msg)) return 'That email already has an account — try logging in instead.';
+    if (/invalid login credentials/i.test(msg)) return "That email and password don't match.";
+    if (/password should be at least/i.test(msg)) return 'Password needs to be at least 8 characters.';
+    if (/rate limit/i.test(msg)) return 'Too many attempts — wait a moment and try again.';
+    return msg;
+  }
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    let valid = true;
+
+    clearError('field-name'); clearError('field-email'); clearError('field-password');
+    statusEl.classList.remove('show');
+
+    if (mode === 'signup' && nameInput.value.trim().length < 2) {
+      showError('field-name', 'Pick a nickname — not your real full name.');
+      valid = false;
+    }
+    if (!emailInput.value.includes('@') || !emailInput.value.includes('.')) {
+      showError('field-email', 'Enter a valid email.');
+      valid = false;
+    }
+    if (passwordInput.value.length < 8) {
+      showError('field-password', 'At least 8 characters.');
+      valid = false;
+    }
+    if (!valid) return;
+
+    setLoading(true);
+    try {
+      if (mode === 'signup') {
+        const { data, error } = await sb.auth.signUp({
+          email: emailInput.value.trim(),
+          password: passwordInput.value,
+          options: { data: { name: nameInput.value.trim() } }
+        });
+        if (error) throw error;
+
+        if (data.session) {
+          setStatus("You're in. Welcome to FitVault.", false);
+          onAuthenticated(data.session);
+        } else {
+          // Email confirmation is on for this project — no session yet.
+          setStatus('Check your email to confirm your account, then log in.', false);
+          const note = document.createElement('p');
+          note.className = 'verify-note';
+          note.textContent = "Didn't get it? Check spam, or try logging in again in a minute.";
+          statusEl.after(note);
+          setMode('login');
+          emailInput.value = data.user?.email || emailInput.value;
+        }
+      } else {
+        const { data, error } = await sb.auth.signInWithPassword({
+          email: emailInput.value.trim(),
+          password: passwordInput.value
+        });
+        if (error) throw error;
+        setStatus('Logged in. Redirecting…', false);
+        onAuthenticated(data.session);
+      }
+    } catch (err) {
+      setStatus(friendlyAuthError(err), true);
+    } finally {
+      setLoading(false);
+    }
+  });
+
+  // ---- Google OAuth ----
+  const btnGoogle = document.getElementById('btn-google');
+  btnGoogle.addEventListener('click', async () => {
+    btnGoogle.disabled = true;
+    const originalHTML = btnGoogle.innerHTML;
+    btnGoogle.innerHTML = '<span class="spin" style="border-color:rgba(28,38,64,0.25); border-top-color:var(--navy);"></span>Redirecting…';
+    try {
+      const { error } = await sb.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          // Supabase sends the user back here after Google auth completes.
+          // Update this if the app is hosted somewhere other than this page's own URL.
+          redirectTo: window.location.origin + window.location.pathname.replace(/[^/]*$/, 'closet_3.html')
+        }
+      });
+      if (error) {
+        setStatus(friendlyAuthError(error), true);
+        btnGoogle.disabled = false;
+        btnGoogle.innerHTML = originalHTML;
+      }
+      // On success, the browser is redirected to Google — no further code runs here.
+    } catch (err) {
+      setStatus(friendlyAuthError(err), true);
+      btnGoogle.disabled = false;
+      btnGoogle.innerHTML = originalHTML;
+    }
+  });
+
+  // Called on a successful sign-up (with an immediate session) or log-in.
+  function onAuthenticated(session){
+    window.location.href = 'closet_3.html';
+  }
+
+  // If a session already exists (returning visitor — including right after
+  // a Google OAuth redirect back to this page), skip straight to the closet.
+  sb.auth.getSession().then(({ data }) => {
+    if (data.session) {
+      window.location.href = 'closet_3.html';
+    }
+  });
+</script>
+
+</body>
+</html>
