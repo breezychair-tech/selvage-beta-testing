@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>FitVault</title>
+<title>Selvage</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Space+Mono:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
@@ -225,7 +225,7 @@
 <body>
 
 <div class="stage">
-  <div class="brand"><span class="dot"></span>FitVault<span class="dot"></span></div>
+  <div class="brand"><span class="dot"></span>Selvage<span class="dot"></span></div>
 
   <!-- ================= VIEW 1: INSTRUCTIONS (care label) ================= -->
   <section class="view active" id="view-instructions">
@@ -256,7 +256,7 @@
       </div>
 
       <div class="why-strip">
-        <b>Why:</b> uploaded photos leave the app to get analyzed by a third-party AI model. Keeping faces and real names out just limits what's floating around outside FitVault.
+        <b>Why:</b> uploaded photos leave the app to get analyzed by a third-party AI model. Keeping faces and real names out just limits what's floating around outside Selvage.
       </div>
 
       <button class="btn" id="btn-continue">Got it — continue</button>
@@ -312,7 +312,7 @@
         </div>
 
         <button type="submit" class="btn" id="btn-submit">Create account</button>
-        <div class="submit-status" id="submit-status">You're in. Welcome to FitVault.</div>
+        <div class="submit-status" id="submit-status">You're in. Welcome to Selvage.</div>
       </form>
 
       <a href="#" class="back-link" id="btn-back">&larr; back to instructions</a>
@@ -440,7 +440,7 @@
         if (error) throw error;
 
         if (data.session) {
-          setStatus("You're in. Welcome to FitVault.", false);
+          setStatus("You're in. Welcome to Selvage.", false);
           onAuthenticated(data.session);
         } else {
           // Email confirmation is on for this project — no session yet.
