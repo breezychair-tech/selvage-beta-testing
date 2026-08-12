@@ -78,7 +78,7 @@
 
   /* ===================== BOTTOM CARD (safeAreaInset(edge:.bottom)) ===================== */
   .bottom-region{
-    flex:none; background:rgba(245,239,227,0.95); padding-bottom:env(safe-area-inset-bottom, 0px);
+    flex:none; background:transparent; padding-bottom:env(safe-area-inset-bottom, 0px);
   }
   .bottom-card{
     margin:0 16px; padding:16px; border-radius:28px;
@@ -292,12 +292,11 @@
 
   /* result sheet */
   .result-caption{ font-size:14.5px; font-weight:600; color:var(--navy); margin:0 0 8px; }
-  .result-notes{ font-size:12.5px; color:var(--navy-dim); margin:0 0 8px; }
-  .result-weather{ display:flex; align-items:center; gap:6px; font-size:11.5px; color:var(--navy-dim); margin-bottom:16px; }
-  .result-weather svg{ width:13px; height:13px; }
+  .note-block{ background:var(--amber-soft); border-radius:10px; padding:12px 14px; font-size:12.5px; line-height:1.55; color:#5f4a1f; margin-bottom:10px; }
+  .note-block b{ color:var(--navy); }
   .piece-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(110px,1fr)); gap:10px; margin-bottom:16px; }
   .piece-card{ background:var(--paper); border-radius:12px; overflow:hidden; border:1px solid rgba(28,38,64,0.08); }
-  .piece-card .ph{ aspect-ratio:3/4; background:var(--cream-dim); }
+  .piece-card .ph{ aspect-ratio:1; background:var(--cream-dim); }
   .piece-card .ph img{ width:100%; height:100%; object-fit:cover; }
   .piece-card .pc-meta{ padding:7px 9px 9px; }
   .piece-card .pc-role{ font-size:9.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--amber); font-weight:700; }
@@ -340,13 +339,15 @@
     <button class="tool-btn" id="btn-back" style="visibility:hidden;" aria-label="Back">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
     </button>
-    <button class="tool-btn" id="btn-saved" aria-label="View saved outfits">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="8" height="8" rx="1.5"/><rect x="13" y="3" width="8" height="8" rx="1.5"/><rect x="3" y="13" width="8" height="8" rx="1.5"/><rect x="13" y="13" width="8" height="8" rx="1.5"/></svg>
+    <button class="tool-btn" id="btn-exit" aria-label="Exit to home" title="Exit to home">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7"/><path d="M5 10v10a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V10"/></svg>
     </button>
 
     <div class="step-dots" id="step-dots"></div>
 
-    <div style="width:34px;"></div>
+    <button class="tool-btn" id="btn-saved" aria-label="View saved outfits">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="8" height="8" rx="1.5"/><rect x="13" y="3" width="8" height="8" rx="1.5"/><rect x="3" y="13" width="8" height="8" rx="1.5"/><rect x="13" y="13" width="8" height="8" rx="1.5"/></svg>
+    </button>
   </div>
 
   <!-- ===== center prompt ===== -->
@@ -394,18 +395,13 @@
       <button id="btn-close-result">Done</button>
     </div>
     <div class="sheet-body">
-      <p class="result-caption" id="result-caption"></p>
-      <p class="result-notes" id="result-notes" style="display:none;"></p>
-      <div class="result-weather" id="result-weather-row" style="display:none;">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="4"/><path d="M2 12h2M20 12h2M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
-        <span id="result-weather-text"></span>
-      </div>
-
+      <p class="result-caption" id="result-caption" style="font-family:'Fraunces',serif; font-weight:500; font-size:21px; line-height:1.3;"></p>
       <div class="piece-grid" id="piece-grid"></div>
-      <div class="piece-role-list" id="piece-role-list"></div>
+      <div class="note-block" id="result-styling" style="display:none;"></div>
+      <div class="note-block" id="result-weather" style="display:none;"></div>
 
       <div class="save-row">
-        <input type="text" id="outfit-name" placeholder="Name this outfit">
+        <input type="text" id="outfit-name" placeholder="Name this outfit" maxlength="60">
         <button id="btn-save-outfit">Save</button>
       </div>
       <div class="save-status" id="save-status"></div>
@@ -426,6 +422,57 @@ const sb = window.supabase.createClient(
 function escapeHtml(str){
   return String(str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
+
+/* =========================================================================
+   CLIENT-SIDE INPUT HARDENING
+   ---------------------------------------------------------------------------
+   IMPORTANT: everything in this block is a UX nicety, not a security
+   boundary. A malicious actor can bypass all of it by calling the
+   `generate-outfit` / `outfits` endpoints directly with curl/Postman using
+   the same publishable key that's sitting in this file's source. Anything
+   that actually needs to be enforced (prompt-injection resistance, rate
+   limits, request size caps, auth/ownership checks, content moderation)
+   MUST be implemented server-side, in the Supabase Edge Function and via
+   Postgres Row Level Security — see the comment above `generateOutfit()`
+   below for the specific server-side checklist. This block just keeps
+   well-behaved users from accidentally sending garbage, and gives a faster
+   "no" than round-tripping to the server for obviously-bad input.
+   ========================================================================= */
+
+// Strip characters outside printable ASCII (+ newline/tab) so lookalike
+// glyphs, zero-width joiners, RTL override marks, and other unicode
+// tricks that are sometimes used to smuggle instructions past a prompt
+// can't ride along in free-text fields. This is deliberately conservative;
+// if legitimate non-English input is ever needed, that's a product
+// decision to revisit alongside the server-side validation, not something
+// to loosen here unilaterally.
+function stripToPrintableAscii(str){
+  return String(str).replace(/[^\x20-\x7E\n\t]/g, '');
+}
+
+// Trim to a max length after stripping, so pasted walls of text can't be
+// used to pad out a request (cheap client-side guard against
+// prompt-stuffing; the edge function should enforce its own limit too).
+function sanitizeText(str, maxLen){
+  return stripToPrintableAscii(str).slice(0, maxLen);
+}
+
+const LIMITS = {
+  occasion: 40,
+  location: 80,
+  outfitName: 60,
+  prompt: 300
+};
+
+// Basic client-side generation cooldown/cap. This is easily bypassed by
+// calling the edge function directly, so it's only meant to stop a
+// well-intentioned tester from hammering the button (and burning model
+// spend) by accident — real rate limiting belongs on the edge function,
+// keyed off the authenticated user id, not the browser.
+const GENERATE_COOLDOWN_MS = 4000;
+const GENERATE_MAX_PER_SESSION = 30;
+let lastGenerateAt = 0;
+let generateCountThisSession = 0;
 
 async function invokeEdgeFunction(name, body){
   const { data, error } = await sb.functions.invoke(name, { body });
@@ -456,6 +503,9 @@ sb.auth.getSession().then(({ data }) => {
 document.getElementById('btn-saved').addEventListener('click', () => {
   // matches the toolbar "square.grid.2x2" -> showSavedOutfits sheet
   openSavedSheet();
+});
+document.getElementById('btn-exit').addEventListener('click', () => {
+  window.location.href = 'index.html';
 });
 
 async function loadClosetItems(){
@@ -598,7 +648,7 @@ function renderDestinationCard(){
   bottomCard.innerHTML = `
     <div class="search-capsule">
       ${ICONS.search}
-      <input type="text" id="occasion-search" placeholder="Type an occasion…" value="${escapeHtml(state.occasionSearch)}">
+      <input type="text" id="occasion-search" placeholder="Type an occasion…" value="${escapeHtml(state.occasionSearch)}" maxlength="60" autocomplete="off" spellcheck="false">
       <button class="go-btn" id="occasion-go">${ICONS.arrowUp}</button>
     </div>
     <div class="hrail" id="occasion-rail"></div>
@@ -606,7 +656,12 @@ function renderDestinationCard(){
   const input = document.getElementById('occasion-search');
   const goBtn = document.getElementById('occasion-go');
   function syncGoBtn(){ goBtn.classList.toggle('enabled', state.occasionSearch.trim().length > 0); }
-  input.addEventListener('input', e => { state.occasionSearch = e.target.value; syncGoBtn(); });
+  input.addEventListener('input', e => {
+    const clean = sanitizeText(e.target.value, LIMITS.occasion);
+    if (clean !== e.target.value) e.target.value = clean; // strip disallowed chars as they're typed/pasted
+    state.occasionSearch = clean;
+    syncGoBtn();
+  });
   input.addEventListener('keydown', e => {
     if (e.key === 'Enter' && state.occasionSearch.trim()) {
       state.selectedOccasion = state.occasionSearch.trim();
@@ -761,7 +816,7 @@ function renderWeatherSection(){
           <button data-m="indoors" class="${state.weatherMode==='indoors'?'active':''}">Indoors</button>
         </div>
         <input type="text" class="location-input" id="custom-location" placeholder="Enter a city or zip code"
-          value="${escapeHtml(state.customLocationText)}"
+          value="${escapeHtml(state.customLocationText)}" maxlength="${LIMITS.location}"
           style="display:${state.weatherMode==='choose' ? 'block' : 'none'};">
         <p class="indoor-note" id="indoor-note" style="display:${state.weatherMode==='indoors' ? 'block' : 'none'};">
           Outdoor conditions won't factor into this look.
@@ -784,7 +839,11 @@ function wireWeatherSection(){
       document.getElementById('indoor-note').style.display = state.weatherMode === 'indoors' ? 'block' : 'none';
     });
   });
-  document.getElementById('custom-location').addEventListener('input', e => state.customLocationText = e.target.value);
+  document.getElementById('custom-location').addEventListener('input', e => {
+    const clean = sanitizeText(e.target.value, LIMITS.location);
+    if (clean !== e.target.value) e.target.value = clean;
+    state.customLocationText = clean;
+  });
 }
 
 // specific pieces (real closet items, mirrors PieceChip/AddPieceButton)
@@ -911,11 +970,19 @@ function renderPromptSection(){
   return `
     <div class="dsec">
       <h3>Add a prompt</h3>
-      <textarea class="prompt-box" id="prompt-text" placeholder="e.g. something cozy for a rainy lunch with friends">${escapeHtml(state.promptText)}</textarea>
+      <textarea class="prompt-box" id="prompt-text" maxlength="${LIMITS.prompt}" placeholder="e.g. something cozy for a rainy lunch with friends">${escapeHtml(state.promptText)}</textarea>
+      <p style="font-size:11px; color:var(--navy-dim); text-align:right; margin:4px 2px 0;" id="prompt-count">${state.promptText.length}/${LIMITS.prompt}</p>
     </div>`;
 }
 function wirePromptSection(){
-  document.getElementById('prompt-text').addEventListener('input', e => state.promptText = e.target.value);
+  const el = document.getElementById('prompt-text');
+  const counter = document.getElementById('prompt-count');
+  el.addEventListener('input', e => {
+    const clean = sanitizeText(e.target.value, LIMITS.prompt);
+    if (clean !== e.target.value) e.target.value = clean;
+    state.promptText = clean;
+    counter.textContent = `${clean.length}/${LIMITS.prompt}`;
+  });
 }
 
 // re-render the customize details without losing scroll position, mostly for chip toggles
@@ -935,9 +1002,50 @@ renderAll();
 
 /* =========================================================================
    GENERATE
+   ---------------------------------------------------------------------------
+   SERVER-SIDE TODO (this frontend cannot enforce any of this — it only
+   ships a publishable key, so treat every field in `body` below as
+   attacker-controlled input arriving at the edge function):
+
+   1. Prompt-injection resistance: `prompt`, `occasion`, `custom_location`
+      (and any other free-text field) must be treated as untrusted data,
+      not instructions, when assembled into the LLM call. Use a fixed
+      system prompt the user input can't override, and don't let the
+      model's output re-enter the request pipeline unsanitized.
+   2. Input validation: re-validate types/ranges/lengths server-side
+      (don't trust that the client enforced LIMITS or ASCII-only — this JS
+      is fully visible/editable by anyone hitting the function directly).
+      Reject or truncate oversized payloads before they reach the model.
+   3. Auth + ownership: verify the Supabase JWT on every call, and scope
+      `specific_piece_ids` / `centerpiece_id` lookups to items owned by
+      that authenticated user — never trust IDs from the client as-is.
+   4. Rate limiting & quota: enforce per-user (and ideally per-IP) request
+      limits and a cost/quota ceiling in the edge function itself (e.g. via
+      a Postgres table tracking calls per user per time window). The
+      client-side cooldown below is a UX nicety only, trivially bypassed.
+   5. Output handling: cap response size, and sanitize/escape anything from
+      the model before it's stored or rendered (this file already escapes
+      on render, but the edge function should not blindly trust model
+      output either, e.g. if it were ever used to build further queries).
+   6. RLS: confirm Row Level Security policies on `outfits` and
+      `clothing_items` restrict reads/writes to the owning user — the
+      publishable key alone provides no isolation between testers.
    ========================================================================= */
 async function generateOutfit(){
   if (state.isGenerating) return;
+
+  const now = Date.now();
+  if (now - lastGenerateAt < GENERATE_COOLDOWN_MS) {
+    state.generationError = 'Give it a few seconds between generations.';
+    renderCustomizeCard();
+    return;
+  }
+  if (generateCountThisSession >= GENERATE_MAX_PER_SESSION) {
+    state.generationError = "You've hit the generation limit for this session — refresh to continue testing.";
+    renderCustomizeCard();
+    return;
+  }
+
   state.isGenerating = true;
   state.generationError = null;
   renderCustomizeCard();
@@ -945,22 +1053,25 @@ async function generateOutfit(){
   const weatherModeWire = { myLocation:'My Location', choose:'Choose', indoors:'Indoors' }[state.weatherMode];
 
   const body = {
-    occasion: state.selectedOccasion || null,
+    occasion: state.selectedOccasion ? sanitizeText(state.selectedOccasion, LIMITS.occasion) : null,
     vibe: state.selectedVibe,
     secondary_vibes: [...state.secondaryVibes],
-    layer_amount: state.layerAmount,
-    statement_amount: state.statementAmount,
-    formality_amount: state.formalityAmount,
+    layer_amount: clamp01(state.layerAmount),
+    statement_amount: clamp01(state.statementAmount),
+    formality_amount: clamp01(state.formalityAmount),
     silhouette: state.selectedSilhouette || null,
     colors: state.includeColors ? [...state.selectedColors] : [],
     account_for_weather: state.accountForWeather,
     weather_mode: weatherModeWire,
-    custom_location: state.weatherMode === 'choose' ? (state.customLocationText || null) : null,
+    custom_location: state.weatherMode === 'choose' ? (sanitizeText(state.customLocationText, LIMITS.location) || null) : null,
     specific_piece_ids: [...state.addedPieceIds],
     centerpiece_id: state.centerpieceId,
     use_clean_only: state.useCleanOnly,
-    prompt: state.promptText.trim() || null
+    prompt: sanitizeText(state.promptText, LIMITS.prompt).trim() || null
   };
+
+  lastGenerateAt = now;
+  generateCountThisSession += 1;
 
   try {
     const data = await invokeEdgeFunction('generate-outfit', body);
@@ -978,6 +1089,7 @@ async function generateOutfit(){
     renderCustomizeCard();
   }
 }
+function clamp01(n){ return Math.min(1, Math.max(0, Number(n) || 0)); }
 
 /* =========================================================================
    RESULT SHEET — mirrors GeneratedOutfitResultView + OutfitPieceStack
@@ -991,43 +1103,47 @@ const TONES = ['#8A8B5E', '#1C2640', 'rgba(138,139,94,0.6)', 'rgba(28,38,64,0.6)
 function openResultSheet(outfit){
   document.getElementById('result-caption').textContent = outfit.caption || '';
 
-  const notesEl = document.getElementById('result-notes');
-  if (outfit.styling_notes) { notesEl.style.display = 'block'; notesEl.textContent = outfit.styling_notes; }
-  else notesEl.style.display = 'none';
-
-  const wRow = document.getElementById('result-weather-row');
-  if (outfit.weather_note) { wRow.style.display = 'flex'; document.getElementById('result-weather-text').textContent = outfit.weather_note; }
-  else wRow.style.display = 'none';
-
-  const pieces = outfit.pieces || [];
   const grid = document.getElementById('piece-grid');
-  grid.innerHTML = pieces.map(piece => {
+  grid.innerHTML = '';
+  (outfit.pieces || []).forEach(piece => {
     const item = closetItems.find(ci => ci.id === piece.id);
-    return `
-      <div class="piece-card">
-        <div class="ph">${item?.image_url ? `<img src="${item.image_url}">` : ''}</div>
-        <div class="pc-meta">
-          <div class="pc-role">${escapeHtml(piece.role || '')}</div>
-          <div class="pc-name">${escapeHtml(item?.name || 'Item')}</div>
-        </div>
+    const card = document.createElement('div');
+    card.className = 'piece-card';
+    card.innerHTML = `
+      <div class="ph">${item?.image_url ? `<img src="${item.image_url}">` : ''}</div>
+      <div class="pc-meta">
+        <div class="pc-role">${escapeHtml(piece.role || '')}</div>
+        <div class="pc-name">${escapeHtml(item?.name || 'Item')}</div>
       </div>`;
-  }).join('');
+    grid.appendChild(card);
+  });
 
-  document.getElementById('piece-role-list').innerHTML = pieces.map(p => `
-    <div class="prow">
-      <span class="prole">${escapeHtml((p.role||'').replace(/^./, c=>c.toUpperCase()))}</span>
-      ${p.reason ? `<span class="preason">${escapeHtml(p.reason)}</span>` : ''}
-    </div>`).join('');
+  const stylingEl = document.getElementById('result-styling');
+  if (outfit.styling_notes) {
+    stylingEl.style.display = 'block';
+    stylingEl.innerHTML = `<b>Styling notes:</b> ${escapeHtml(outfit.styling_notes)}`;
+  } else stylingEl.style.display = 'none';
+
+  const weatherEl = document.getElementById('result-weather');
+  if (outfit.weather_note) {
+    weatherEl.style.display = 'block';
+    weatherEl.innerHTML = `<b>Weather:</b> ${escapeHtml(outfit.weather_note)}`;
+  } else weatherEl.style.display = 'none';
 
   document.getElementById('outfit-name').value = outfit.caption ? outfit.caption.slice(0, 40) : 'My outfit';
   document.getElementById('save-status').classList.remove('show');
   resultBackdrop.classList.add('show');
 }
 
+document.getElementById('outfit-name').addEventListener('input', e => {
+  const clean = sanitizeText(e.target.value, LIMITS.outfitName);
+  if (clean !== e.target.value) e.target.value = clean;
+});
+
 document.getElementById('btn-save-outfit').addEventListener('click', async () => {
   if (!lastResult) return;
   const statusEl = document.getElementById('save-status');
-  const name = document.getElementById('outfit-name').value.trim() || 'My outfit';
+  const name = sanitizeText(document.getElementById('outfit-name').value.trim(), LIMITS.outfitName) || 'My outfit';
 
   statusEl.classList.remove('is-error');
   statusEl.classList.add('show');
